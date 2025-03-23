@@ -1,0 +1,405 @@
+{
+	"info": {
+		"_postman_id": "dc37d7e4-801b-4c5f-adc6-efb429a2faf3",
+		"name": "Product Controller API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "22886517"
+	},
+	"item": [
+		{
+			"name": "GET All Products",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET All Products Paged",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/paged?page={{page}}&size={{size}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"paged"
+					],
+					"query": [
+						{
+							"key": "page",
+							"value": "{{page}}"
+						},
+						{
+							"key": "size",
+							"value": "{{size}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Product by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/{{productId}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"{{productId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Product by ID Async",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/async/{{productId}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"async",
+						"{{productId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Products by Category",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/category/{{category}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"category",
+						"{{category}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Products by Category Paged",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/category/{{category}}/paged?page={{page}}&size={{size}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"category",
+						"{{category}}",
+						"paged"
+					],
+					"query": [
+						{
+							"key": "page",
+							"value": "{{page}}"
+						},
+						{
+							"key": "size",
+							"value": "{{size}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Products by Price Range",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/price?min={{minPrice}}&max={{maxPrice}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"price"
+					],
+					"query": [
+						{
+							"key": "min",
+							"value": "{{minPrice}}"
+						},
+						{
+							"key": "max",
+							"value": "{{maxPrice}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Products by Price Range Paged",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/price/paged?min={{minPrice}}&max={{maxPrice}}&page={{page}}&size={{size}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"price",
+						"paged"
+					],
+					"query": [
+						{
+							"key": "min",
+							"value": "{{minPrice}}"
+						},
+						{
+							"key": "max",
+							"value": "{{maxPrice}}"
+						},
+						{
+							"key": "page",
+							"value": "{{page}}"
+						},
+						{
+							"key": "size",
+							"value": "{{size}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Products by Min Stock",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/stock?min={{minStock}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"stock"
+					],
+					"query": [
+						{
+							"key": "min",
+							"value": "{{minStock}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET Products by Min Stock Paged",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/stock/paged?min={{minStock}}&page={{page}}&size={{size}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"stock",
+						"paged"
+					],
+					"query": [
+						{
+							"key": "min",
+							"value": "{{minStock}}"
+						},
+						{
+							"key": "page",
+							"value": "{{page}}"
+						},
+						{
+							"key": "size",
+							"value": "{{size}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Products",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/search?keyword={{keyword}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"search"
+					],
+					"query": [
+						{
+							"key": "keyword",
+							"value": "{{keyword}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Products Async",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/search/async?keyword={{keyword}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"search",
+						"async"
+					],
+					"query": [
+						{
+							"key": "keyword",
+							"value": "{{keyword}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Products Paged",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products/search/paged?keyword={{keyword}}&page={{page}}&size={{size}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"search",
+						"paged"
+					],
+					"query": [
+						{
+							"key": "keyword",
+							"value": "{{keyword}}"
+						},
+						{
+							"key": "page",
+							"value": "{{page}}"
+						},
+						{
+							"key": "size",
+							"value": "{{size}}"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "category",
+			"value": "Electronics",
+			"type": "string"
+		},
+		{
+			"key": "keyword",
+			"value": "Laptop",
+			"type": "string"
+		},
+		{
+			"key": "minPrice",
+			"value": "10",
+			"type": "string"
+		},
+		{
+			"key": "maxPrice",
+			"value": "100",
+			"type": "string"
+		},
+		{
+			"key": "minStock",
+			"value": "5",
+			"type": "string"
+		},
+		{
+			"key": "page",
+			"value": "0",
+			"type": "string"
+		},
+		{
+			"key": "size",
+			"value": "20",
+			"type": "string"
+		}
+	]
+}

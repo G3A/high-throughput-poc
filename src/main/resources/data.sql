@@ -1,0 +1,15 @@
+INSERT INTO products (name, price, category, stock) VALUES ('Smartphone X', 699.99, 'Electronics', 50);
+INSERT INTO products (name, price, category, stock) VALUES ('Laptop Pro', 1299.99, 'Electronics', 25);
+INSERT INTO products (name, price, category, stock) VALUES ('Wireless Headphones', 199.99, 'Electronics', 100);
+INSERT INTO products (name, price, category, stock) VALUES ('Running Shoes', 89.99, 'Sports', 75);
+INSERT INTO products (name, price, category, stock) VALUES ('Yoga Mat', 29.99, 'Sports', 120);
+INSERT INTO products (name, price, category, stock) VALUES ('Protein Powder', 39.99, 'Nutrition', 200);
+INSERT INTO products (name, price, category, stock) VALUES ('Coffee Maker', 149.99, 'Home', 40);
+INSERT INTO products (name, price, category, stock) VALUES ('Blender', 79.99, 'Home', 60);
+INSERT INTO products (name, price, category, stock) VALUES ('Desk Chair', 199.99, 'Furniture', 30);
+INSERT INTO products (name, price, category, stock) VALUES ('Bookshelf', 149.99, 'Furniture', 25);
+INSERT INTO products (name, price, category, stock) VALUES ('Novel Collection', 49.99, 'Books', 75);
+INSERT INTO products (name, price, category, stock) VALUES ('Cookware Set', 199.99, 'Kitchen', 40);
+INSERT INTO products (name, price, category, stock) VALUES ('Smart Watch', 299.99, 'Electronics', 80);
+INSERT INTO products (name, price, category, stock) VALUES ('Hiking Backpack', 79.99, 'Outdoors', 60);
+INSERT INTO products (name, price, category, stock) VALUES ('Digital Camera', 599.99, 'Electronics', 20);
