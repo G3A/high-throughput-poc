@@ -1,0 +1,10 @@
+INSERT INTO products (name, price, category, stock) VALUES ('Basic Hiking Backpack Plus6', 316.73, 'Outdoors', 170);
+INSERT INTO products (name, price, category, stock) VALUES ('XL Meal Replacement', 44.33, 'Nutrition', 156);
+INSERT INTO products (name, price, category, stock) VALUES ('Basic Lawn Mower', 48.75, 'Garden', 447);
+INSERT INTO products (name, price, category, stock) VALUES ('SmartChoice Elite Fish Oil Z7', 16.64, 'Nutrition', 384);
+INSERT INTO products (name, price, category, stock) VALUES ('Protein Powder S4', 18.42, 'Nutrition', 355);
+INSERT INTO products (name, price, category, stock) VALUES ('SmartChoice Ultra Grill', 649.44, 'Outdoors', 368);
+INSERT INTO products (name, price, category, stock) VALUES ('PurpleHaze Compact Collar Lite7', 8.01, 'Pet Supplies', 390);
+INSERT INTO products (name, price, category, stock) VALUES ('WhiteSwan Ultra Cooler X7', 168.07, 'Outdoors', 391);
+INSERT INTO products (name, price, category, stock) VALUES ('NatureFit Premium Router Plus1', 1488.76, 'Electronics', 424);
+INSERT INTO products (name, price, category, stock) VALUES ('ComfortZone Tent', 631.95, 'Outdoors', 427);

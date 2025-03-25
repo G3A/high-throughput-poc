@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliente de Productos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Cliente de Productos</h1>
+        <div class="status">
+            <span id="status-indicator"></span>
+            <span id="status-text">Listo</span>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="control-panel">
+            <h2>Acciones</h2>
+            <div class="action-buttons">
+                <button id="get-all-btn" class="btn primary">Obtener todos los productos</button>
+                <button id="get-paged-btn" class="btn primary">Obtener productos (paginado)</button>
+                <button id="search-btn" class="btn primary">Buscar productos</button>
+            </div>
+
+            <div id="search-panel" class="search-panel hidden">
+                <input type="text" id="search-input" placeholder="Término de búsqueda">
+                <button id="execute-search-btn" class="btn secondary">Buscar</button>
+            </div>
+
+            <div id="pagination-panel" class="pagination-panel hidden">
+                <label for="page-size">Tamaño de página:</label>
+                <select id="page-size">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                </select>
+                <label for="page-number">Página:</label>
+                <input type="number" id="page-number" min="0" value="0">
+                <button id="execute-paged-btn" class="btn secondary">Cargar</button>
+            </div>
+        </div>
+
+        <div class="results-container">
+            <h2>Resultados</h2>
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Procesando solicitud...</p>
+                <p id="task-id" class="task-id-display"></p>
+            </div>
+            <div id="error-container" class="error hidden"></div>
+            <div id="results" class="results">
+                <table id="products-table">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                    </tr>
+                    </thead>
+                    <tbody id="products-list">
+                    <tr>
+                        <td colspan="5" class="no-data">No hay datos para mostrar</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="pagination-info" class="pagination-info hidden">
+                <span id="page-info"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-panel">
+        <h2>Estadísticas del Worker</h2>
+        <button id="refresh-stats-btn" class="btn secondary">Actualizar estadísticas</button>
+        <div id="stats-loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Cargando estadísticas...</p>
+        </div>
+        <div id="stats-container" class="stats-container">
+            <div class="stat-card">
+                <h3>Tareas enviadas</h3>
+                <p id="tasks-submitted">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Tareas procesadas</h3>
+                <p id="tasks-processed">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Tareas rechazadas</h3>
+                <p id="tasks-rejected">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Tiempo de actividad</h3>
+                <p id="uptime">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Tiempo medio de procesamiento</h3>
+                <p id="avg-processing-time">0 ms</p>
+            </div>
+            <div class="stat-card">
+                <h3>Tamaño de la cola</h3>
+                <p id="queue-size">0</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cargar scripts en el orden correcto -->
+<script src="config.js"></script>
+<script src="client.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
