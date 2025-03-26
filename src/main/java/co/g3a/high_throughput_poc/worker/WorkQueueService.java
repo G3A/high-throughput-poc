@@ -1,5 +1,6 @@
 package co.g3a.high_throughput_poc.worker;
 
+import co.g3a.high_throughput_poc.worker.exception.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -20,26 +21,30 @@ public class WorkQueueService {
     private final ConcurrentMap<UUID, SseEmitter> emitters = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, WorkTask<?, ?>> taskResults = new ConcurrentHashMap<>();
     private final ExecutorService processingExecutor = Executors.newVirtualThreadPerTaskExecutor();
-    private final Duration defaultMaxProcessingTime = Duration.ofSeconds(7);
-    private final Duration taskResultsRetention = Duration.ofMinutes(30); // Mantener resultados por 30 minutos
-    
-    // Métricas para estadísticas
+    private final Duration defaultMaxProcessingTime = Duration.ofMinutes(1);
+    private final Duration taskResultsRetention = Duration.ofSeconds(10);
+
+    // Control de carga
+    private final Semaphore requestThrottle;
+    private static final int MAX_CONCURRENT_REQUESTS = 2000;
+
+    // Métricas
     private final AtomicLong totalTasksProcessed = new AtomicLong(0);
     private final AtomicLong tasksRejected = new AtomicLong(0);
     private final AtomicLong tasksSuccessful = new AtomicLong(0);
     private final ConcurrentMap<String, AtomicLong> taskCountByType = new ConcurrentHashMap<>();
     private final ConcurrentLinkedQueue<Long> processingTimes = new ConcurrentLinkedQueue<>();
-    private final int maxProcessingTimeSamples = 100; // Mantener las últimas 100 muestras
+    private final int maxProcessingTimeSamples = 300;
     private final Instant startTime = Instant.now();
 
     public WorkQueueService(List<TaskProcessor<?, ?>> taskProcessors) {
-        // Registrar todos los procesadores de tareas disponibles
+        this.requestThrottle = new Semaphore(MAX_CONCURRENT_REQUESTS);
+
         taskProcessors.forEach(processor -> {
             processors.put(processor.getTaskType(), processor);
             taskCountByType.put(processor.getTaskType(), new AtomicLong(0));
         });
-        
-        // Programar limpieza periódica de resultados antiguos
+
         ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
         cleanupExecutor.scheduleAtFixedRate(this::cleanupOldResults, 5, 5, TimeUnit.MINUTES);
     }
@@ -48,84 +53,90 @@ public class WorkQueueService {
         Instant now = Instant.now();
         taskResults.entrySet().removeIf(entry -> {
             WorkTask<?, ?> task = entry.getValue();
-            return task.getProcessedAt() != null && 
-                   Duration.between(task.getProcessedAt(), now).compareTo(taskResultsRetention) > 0;
+            return task.getProcessedAt() != null &&
+                    Duration.between(task.getProcessedAt(), now).compareTo(taskResultsRetention) > 0;
         });
     }
 
     @SuppressWarnings("unchecked")
     private <T, R> void processTaskImmediately(WorkTask<T, R> task) {
+        boolean permitAcquired = false;
         Instant startTime = Instant.now();
-        
+
         try {
-            // Buscar el procesador adecuado para esta tarea
+            permitAcquired = requestThrottle.tryAcquire(5, TimeUnit.SECONDS);
+            if (!permitAcquired) {
+                task.setStatus(WorkTask.TaskStatus.REJECTED);
+                task.setProcessedAt(Instant.now());
+                tasksRejected.incrementAndGet();
+                taskResults.put(task.getId(), task);
+                notifyClient(task);
+                throw new ServerHighLoadException(requestThrottle.availablePermits());
+            }
+
             TaskProcessor<T, R> processor = (TaskProcessor<T, R>) processors.get(task.getType());
             if (processor == null) {
-                throw new IllegalStateException("No processor found for task type: " + task.getType());
+                throw new ProcessorNotFoundException(task.getType());
             }
-            
-            // Procesar la tarea inmediatamente
+
             R result = processor.processTask(task.getRequest());
             task.setResult(result);
-            
-            // Verificar si tardó demasiado
+
             Duration processingDuration = Duration.between(startTime, Instant.now());
-            
-            // Actualizar métricas
+
             totalTasksProcessed.incrementAndGet();
             taskCountByType.get(task.getType()).incrementAndGet();
-            
-            // Guardar tiempo de procesamiento
+
             synchronized (processingTimes) {
                 processingTimes.add(processingDuration.toMillis());
                 while (processingTimes.size() > maxProcessingTimeSamples) {
                     processingTimes.poll();
                 }
             }
-            
+
             if (processingDuration.compareTo(task.getMaxProcessingTime()) > 0) {
                 task.setStatus(WorkTask.TaskStatus.REJECTED);
                 tasksRejected.incrementAndGet();
+                throw new ProcessingTimeoutException(task.getId(), processingDuration);
             } else {
                 task.setStatus(WorkTask.TaskStatus.PROCESSED);
                 tasksSuccessful.incrementAndGet();
             }
-            
-            // Guardar el resultado para futuras consultas
+
             taskResults.put(task.getId(), task);
+
+        } catch (ProcessorNotFoundException | ServerHighLoadException | ProcessingTimeoutException e) {
+            // Estas excepciones ya están manejadas antes de lanzarse
+            throw e;
         } catch (Exception e) {
             task.setStatus(WorkTask.TaskStatus.REJECTED);
+            task.setProcessedAt(Instant.now());
             tasksRejected.incrementAndGet();
-            System.err.println("Error processing task: " + e.getMessage());
-            e.printStackTrace();
-            
-            // Guardar el resultado con error
+            TaskProcessingException processingException = new TaskProcessingException(
+                    task.getId(), task.getType(), e.getMessage(), e
+            );
             taskResults.put(task.getId(), task);
+            throw processingException;
+        } finally {
+            if (permitAcquired) {
+                requestThrottle.release();
+            }
+            notifyClient(task);
         }
-        
-        // Notificar al cliente si hay un emitter registrado
-        notifyClient(task);
     }
 
     private void notifyClient(WorkTask<?, ?> task) {
         SseEmitter emitter = emitters.remove(task.getId());
         if (emitter != null) {
             try {
-                Map<String, Object> response;
-                
+                Map<String, Object> response = new HashMap<>();
+                response.put("idTask", task.getId());
+                response.put("status", task.getStatus().toString());
+
                 if (task.getStatus() == WorkTask.TaskStatus.PROCESSED) {
-                    response = Map.of(
-                        "idTask", task.getId(),
-                        "status", "PROCESSED",
-                        "result", task.getResult() != null ? task.getResult() : ""
-                    );
-                } else {
-                    response = Map.of(
-                        "idTask", task.getId(),
-                        "status", "REJECTED"
-                    );
+                    response.put("result", task.getResult() != null ? task.getResult() : "");
                 }
-                
+
                 emitter.send(SseEmitter.event().data(response));
                 emitter.complete();
             } catch (IOException e) {
@@ -137,138 +148,109 @@ public class WorkQueueService {
     public <T, R> UUID enqueueTask(String type, T request) {
         return enqueueTask(type, request, defaultMaxProcessingTime);
     }
-    
+
     public <T, R> UUID enqueueTask(String type, T request, Duration maxProcessingTime) {
-        // Verificar que exista un procesador para este tipo de tarea
-        if (!processors.containsKey(type)) {
-            throw new IllegalArgumentException("No processor registered for task type: " + type);
+        if (requestThrottle.availablePermits() < MAX_CONCURRENT_REQUESTS * 0.03 ) {
+            // El sistema solo rechazará nuevas tareas cuando queden menos de 90 permisos disponibles de los 3000 totales.
+            throw new ServerHighLoadException(requestThrottle.availablePermits());
         }
-        
-        // Crear la tarea
+
+        if (!processors.containsKey(type)) {
+            throw new ProcessorNotFoundException(type);
+        }
+
         WorkTask<T, R> task = new WorkTask<>(type, request, maxProcessingTime);
-        
-        // Guardar la tarea en estado PENDING
         taskResults.put(task.getId(), task);
-        
-        // Procesar la tarea inmediatamente en un hilo separado
-        processingExecutor.submit(() -> processTaskImmediately(task));
-        
+        processingExecutor.submit(() -> {
+            try {
+                processTaskImmediately(task);
+            } catch (WorkQueueException e) {
+                // Las excepciones ya fueron manejadas en processTaskImmediately
+                // Solo capturamos aquí para evitar que el executor falle
+            }
+        });
+
         return task.getId();
     }
 
-    /**
-     * Procesa una tarea de forma síncrona y devuelve el resultado directamente
-     */
     @SuppressWarnings("unchecked")
     public <T> Map<String, Object> processTaskAndWaitResult(String type, T request) {
         Instant taskStartTime = Instant.now();
-        
-        // Verificar que exista un procesador para este tipo de tarea
+
         if (!processors.containsKey(type)) {
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("error", "No processor registered for task type: " + type);
-            return errorResult;
+            throw new ProcessorNotFoundException(type);
         }
-        
+
         try {
-            // Obtener el procesador adecuado
             TaskProcessor<T, ?> processor = (TaskProcessor<T, ?>) processors.get(type);
-            
-            // Procesar la tarea y obtener el resultado
             Object result = processor.processTask(request);
-            
-            // Actualizar métricas
+
             Duration processingDuration = Duration.between(taskStartTime, Instant.now());
             totalTasksProcessed.incrementAndGet();
             tasksSuccessful.incrementAndGet();
             taskCountByType.get(type).incrementAndGet();
-            
-            // Guardar tiempo de procesamiento
+
             synchronized (processingTimes) {
                 processingTimes.add(processingDuration.toMillis());
                 while (processingTimes.size() > maxProcessingTimeSamples) {
                     processingTimes.poll();
                 }
             }
-            
-            // Preparar la respuesta
-            if (result instanceof Map) {
-                return (Map<String, Object>) result;
-            } else {
-                Map<String, Object> responseMap = new HashMap<>();
-                responseMap.put("result", result);
-                return responseMap;
-            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", WorkTask.TaskStatus.PROCESSED.toString());
+            response.put("result", result);
+            response.put("processingTimeMs", processingDuration.toMillis());
+            return response;
+
         } catch (Exception e) {
             tasksRejected.incrementAndGet();
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("error", "Error processing task: " + e.getMessage());
-            return errorResult;
+            throw new TaskProcessingException(UUID.randomUUID(), type, e.getMessage(), e);
         }
     }
 
-    /**
-     * Obtiene el estado actual de una tarea
-     */
     public Map<String, Object> getTaskStatus(UUID taskId) {
-        Map<String, Object> status = new HashMap<>();
         WorkTask<?, ?> task = taskResults.get(taskId);
-        
+
         if (task == null) {
-            status.put("idTask", taskId);
-            status.put("status", "UNKNOWN");
-            status.put("message", "Task not found or expired");
-            return status;
+            throw new TaskNotFoundException(taskId);
         }
-        
+
+        Map<String, Object> status = new HashMap<>();
         status.put("idTask", taskId);
         status.put("taskType", task.getType());
         status.put("createdAt", task.getCreatedAt().toString());
-        
+        status.put("status", task.getStatus().toString());
+
         switch (task.getStatus()) {
             case PENDING:
-                status.put("status", "PENDING");
                 status.put("elapsedTimeMs", Duration.between(task.getCreatedAt(), Instant.now()).toMillis());
                 break;
             case PROCESSED:
-                status.put("status", "PROCESSED");
                 status.put("result", task.getResult());
                 status.put("processingTimeMs", task.getProcessingDuration().toMillis());
                 status.put("processedAt", task.getProcessedAt().toString());
                 break;
             case REJECTED:
-                status.put("status", "REJECTED");
                 status.put("processingTimeMs", task.getProcessingDuration().toMillis());
                 status.put("processedAt", task.getProcessedAt().toString());
                 break;
         }
-        
+
         return status;
     }
 
-    /**
-     * Crea un SSE emitter para una tarea específica
-     */
     public SseEmitter createEmitterForTask(UUID taskId) {
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // Sin timeout práctico
-        
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+
         WorkTask<?, ?> existingTask = taskResults.get(taskId);
-        if (existingTask != null && existingTask.getStatus() != WorkTask.TaskStatus.PENDING) {
-            // Si la tarea ya está completada, enviar el resultado inmediatamente
+        if (existingTask == null) {
             try {
-                Map<String, Object> response;
-                if (existingTask.getStatus() == WorkTask.TaskStatus.PROCESSED) {
-                    response = Map.of(
-                        "idTask", existingTask.getId(),
-                        "status", "PROCESSED",
-                        "result", existingTask.getResult() != null ? existingTask.getResult() : ""
-                    );
-                } else {
-                    response = Map.of(
-                        "idTask", existingTask.getId(),
-                        "status", "REJECTED"
-                    );
-                }
+                Map<String, Object> response = new HashMap<>();
+                response.put("idTask", taskId);
+                response.put("status", "UNKNOWN");
+                response.put("message", "Task not found or expired");
+
                 emitter.send(SseEmitter.event().data(response));
                 emitter.complete();
                 return emitter;
@@ -277,68 +259,55 @@ public class WorkQueueService {
                 return emitter;
             }
         }
-        
-        // Configurar callbacks
+
+        if (existingTask.getStatus() != WorkTask.TaskStatus.PENDING) {
+            try {
+                Map<String, Object> response = new HashMap<>();
+                response.put("idTask", existingTask.getId());
+                response.put("status", existingTask.getStatus().toString());
+
+                if (existingTask.getStatus() == WorkTask.TaskStatus.PROCESSED) {
+                    response.put("result", existingTask.getResult() != null ? existingTask.getResult() : "");
+                }
+
+                emitter.send(SseEmitter.event().data(response));
+                emitter.complete();
+                return emitter;
+            } catch (IOException e) {
+                emitter.completeWithError(e);
+                return emitter;
+            }
+        }
+
         emitter.onCompletion(() -> emitters.remove(taskId));
         emitter.onTimeout(() -> emitters.remove(taskId));
         emitter.onError(e -> emitters.remove(taskId));
-        
-        // Guardar el emitter para notificar cuando la tarea esté completa
+
         emitters.put(taskId, emitter);
         return emitter;
     }
-    
-    /**
-     * Obtiene estadísticas sobre el rendimiento del servicio
-     */
+
     public Map<String, Object> getStatistics() {
         Map<String, Object> stats = new HashMap<>();
-        
-        // Estadísticas generales
+
         stats.put("totalTasksProcessed", totalTasksProcessed.get());
         stats.put("tasksSuccessful", tasksSuccessful.get());
         stats.put("tasksRejected", tasksRejected.get());
         stats.put("activeEmitters", emitters.size());
         stats.put("storedResults", taskResults.size());
         stats.put("uptime", Duration.between(startTime, Instant.now()).getSeconds());
-        
-        // Procesadores registrados
-        List<String> registeredProcessors = new ArrayList<>(processors.keySet());
-        stats.put("registeredProcessors", registeredProcessors);
-        stats.put("processorCount", registeredProcessors.size());
-        
-        // Conteo por tipo de tarea
+
+        stats.put("availablePermits", requestThrottle.availablePermits());
+        stats.put("queueLength", MAX_CONCURRENT_REQUESTS - requestThrottle.availablePermits());
+        stats.put("systemLoad", (double)(MAX_CONCURRENT_REQUESTS - requestThrottle.availablePermits()) / MAX_CONCURRENT_REQUESTS);
+
         Map<String, Long> tasksByType = new HashMap<>();
         taskCountByType.forEach((type, count) -> tasksByType.put(type, count.get()));
         stats.put("tasksByType", tasksByType);
-        
-        // Tiempo de procesamiento promedio
-        double avgProcessingTime = 0;
-        synchronized (processingTimes) {
-            if (!processingTimes.isEmpty()) {
-                avgProcessingTime = processingTimes.stream()
-                        .mapToLong(Long::longValue)
-                        .average()
-                        .orElse(0);
-            }
-        }
-        stats.put("avgProcessingTimeMs", avgProcessingTime);
-        
+
+        List<String> registeredProcessors = new ArrayList<>(processors.keySet());
+        stats.put("registeredProcessors", registeredProcessors);
+
         return stats;
-    }
-    
-    /**
-     * Detiene ordenadamente el servicio de procesamiento de tareas
-     */
-    public void shutdown() {
-        processingExecutor.shutdown();
-        try {
-            if (!processingExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-                processingExecutor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            processingExecutor.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
     }
 }

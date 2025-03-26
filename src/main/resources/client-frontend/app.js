@@ -65,7 +65,7 @@ function resetUI() {
     statusIndicator.classList.remove('error');
     statusText.textContent = 'Listo';
 
-    // Cancelar cualquier polling existente
+    // Cancelar cualquier SSE existente
     if (currentPollingCancel) {
         currentPollingCancel();
         currentPollingCancel = null;
@@ -132,8 +132,8 @@ getAllBtn.addEventListener('click', async () => {
         if (response.pending) {
             showLoading(response.taskId);
 
-            // Iniciar polling para consultar el estado de la tarea
-            currentPollingCancel = client.startPolling(
+            // Usar SSE para obtener actualizaciones en tiempo real
+            const eventSource = client.setupSSEListener(
                 response.taskId,
                 // onProcessed
                 (result) => {
@@ -148,9 +148,14 @@ getAllBtn.addEventListener('click', async () => {
                 // onError
                 (error) => {
                     hideLoading();
-                    showError(error.message);
+                    showError(error.message || 'Error en la conexión SSE');
                 }
             );
+
+            // Guardar referencia al eventSource para poder cerrarlo después
+            currentPollingCancel = () => {
+                if (eventSource) eventSource.close();
+            };
         }
     } catch (error) {
         hideLoading();
@@ -186,8 +191,8 @@ executePagedBtn.addEventListener('click', async () => {
         if (response.pending) {
             showLoading(response.taskId);
 
-            // Iniciar polling para consultar el estado de la tarea
-            currentPollingCancel = client.startPolling(
+            // Usar SSE para obtener actualizaciones en tiempo real
+            const eventSource = client.setupSSEListener(
                 response.taskId,
                 // onProcessed
                 (result) => {
@@ -202,9 +207,14 @@ executePagedBtn.addEventListener('click', async () => {
                 // onError
                 (error) => {
                     hideLoading();
-                    showError(error.message);
+                    showError(error.message || 'Error en la conexión SSE');
                 }
             );
+
+            // Guardar referencia al eventSource para poder cerrarlo después
+            currentPollingCancel = () => {
+                if (eventSource) eventSource.close();
+            };
         }
     } catch (error) {
         hideLoading();
@@ -231,8 +241,8 @@ executeSearchBtn.addEventListener('click', async () => {
         if (response.pending) {
             showLoading(response.taskId);
 
-            // Iniciar polling para consultar el estado de la tarea
-            currentPollingCancel = client.startPolling(
+            // Usar SSE para obtener actualizaciones en tiempo real
+            const eventSource = client.setupSSEListener(
                 response.taskId,
                 // onProcessed
                 (result) => {
@@ -247,9 +257,14 @@ executeSearchBtn.addEventListener('click', async () => {
                 // onError
                 (error) => {
                     hideLoading();
-                    showError(error.message);
+                    showError(error.message || 'Error en la conexión SSE');
                 }
             );
+
+            // Guardar referencia al eventSource para poder cerrarlo después
+            currentPollingCancel = () => {
+                if (eventSource) eventSource.close();
+            };
         }
     } catch (error) {
         hideLoading();
@@ -288,6 +303,8 @@ function init() {
     // Cargar estadísticas iniciales
     loadWorkerStats();
 
+    // Configurar intervalo para actualizar estadísticas automáticamente
+    setInterval(loadWorkerStats, 10000);
     // Configurar intervalo para actualizar estadísticas automáticamente
     setInterval(loadWorkerStats, 10000); // Actualizar cada 10 segundos
 }

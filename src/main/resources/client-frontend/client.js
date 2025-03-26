@@ -69,41 +69,6 @@ class ProductClient {
         }
     }
 
-    // Iniciar polling para consultar el estado de una tarea
-    startPolling(taskId, onProcessed, onRejected, onError) {
-        let pollInterval = null;
-
-        const checkTaskStatus = async () => {
-            try {
-                const taskStatus = await this.getTaskStatus(taskId);
-
-                if (taskStatus.status === 'PROCESSED') {
-                    clearInterval(pollInterval);
-                    onProcessed(taskStatus.result);
-                } else if (taskStatus.status === 'REJECTED') {
-                    clearInterval(pollInterval);
-                    onRejected();
-                } else if (taskStatus.status === 'UNKNOWN') {
-                    clearInterval(pollInterval);
-                    onError(new Error('Task not found or expired'));
-                }
-                // Si es PENDING, seguiremos consultando
-            } catch (error) {
-                clearInterval(pollInterval);
-                onError(error);
-            }
-        };
-
-        // Iniciar el intervalo de polling
-        pollInterval = setInterval(checkTaskStatus, this.config.pollingInterval);
-
-        // También consultamos inmediatamente
-        checkTaskStatus();
-
-        // Devolver una función para cancelar el polling
-        return () => clearInterval(pollInterval);
-    }
-
     // Configurar un EventSource para suscribirse a actualizaciones SSE
     setupSSEListener(taskId, onProcessed, onRejected, onError) {
         try {
